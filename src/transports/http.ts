@@ -117,14 +117,17 @@ export async function setupHttpTransport(
         );
 
         // Create new transport
+        // Allow custom hosts via ALLOWED_HOSTS env var (comma-separated)
+        const customHosts = process.env.ALLOWED_HOSTS?.split(',').map(h => h.trim()).filter(Boolean) || [];
+        const defaultHosts = [
+          "127.0.0.1",
+          "localhost",
+          `127.0.0.1:${config.httpStream.port}`,
+          `localhost:${config.httpStream.port}`,
+        ];
         transport = new StreamableHTTPServerTransport({
           enableDnsRebindingProtection: true,
-          allowedHosts: [
-            "127.0.0.1",
-            "localhost",
-            `127.0.0.1:${config.httpStream.port}`,
-            `localhost:${config.httpStream.port}`,
-          ],
+          allowedHosts: [...defaultHosts, ...customHosts],
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (newSessionId) => {
             console.error(`[Transport] Session initialized: ${newSessionId}`);
