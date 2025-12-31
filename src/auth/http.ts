@@ -197,6 +197,14 @@ export async function authenticateHttpRequest(
     return authenticateWithApiKey(password);
   }
 
+  // Check for API key mode: Bearer token that matches API_KEY (from OAuth flow)
+  if (isBearer && process.env.API_KEY) {
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (token === process.env.API_KEY) {
+      return authenticateWithApiKey(token);
+    }
+  }
+
   if (!isBearer && !isBasic) {
     throw new Error("Authorization header must be Basic or Bearer");
   }

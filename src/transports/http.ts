@@ -82,6 +82,60 @@ export async function setupHttpTransport(
     });
   });
 
+  // OAuth2 endpoints for Claude connector authentication
+  // GET /authorize - OAuth authorization endpoint (redirects back with code)
+  app.get("/authorize", (req, res) => {
+    const { redirect_uri, state } = req.query;
+    if (!redirect_uri) {
+      res.status(400).json({ error: "redirect_uri required" });
+      return;
+    }
+    // Generate a simple auth code and redirect back
+    const code = randomUUID();
+    const redirectUrl = new URL(redirect_uri as string);
+    redirectUrl.searchParams.set("code", code);
+    if (state) redirectUrl.searchParams.set("state", state as string);
+    console.error(`[OAuth] Redirecting to ${redirectUrl.toString()}`);
+    res.redirect(redirectUrl.toString());
+  });
+
+  // POST /token - OAuth token endpoint (validates client_secret, returns access_token)
+  // Security model: client_secret == API_KEY, and access_token == API_KEY
+  // The MCP endpoint validates Bearer token matches API_KEY
+  app.post("/token", express.urlencoded({ extended: true }), (req, res) => {
+    const { client_id, client_secret, code, grant_type } = req.body;
+    const apiKey = process.env.API_KEY;
+
+    // Validate grant_type
+    if (grant_type !== "authorization_code") {
+      console.error(`[OAuth] Unsupported grant_type: ${grant_type}`);
+      res.status(400).json({ error: "unsupported_grant_type", error_description: "Only authorization_code is supported" });
+      return;
+    }
+
+    if (!apiKey) {
+      console.error("[OAuth] API_KEY not configured");
+      res.status(500).json({ error: "server_error", error_description: "API_KEY not configured" });
+      return;
+    }
+
+    // Validate client_secret matches API_KEY
+    if (client_secret !== apiKey) {
+      console.error("[OAuth] Invalid client_secret");
+      res.status(401).json({ error: "invalid_client", error_description: "Invalid client credentials" });
+      return;
+    }
+
+    // Return access token - we use the API_KEY as the access_token
+    // This is validated in authenticateHttpRequest when Bearer token is received
+    console.error(`[OAuth] Token issued for client_id: ${client_id}`);
+    res.json({
+      access_token: apiKey,
+      token_type: "Bearer",
+      expires_in: 86400
+    });
+  });
+
   // MCP endpoint - POST for client requests
   app.post(config.httpStream.endpoint, async (req, res) => {
     try {
