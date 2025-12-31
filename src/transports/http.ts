@@ -111,12 +111,7 @@ export async function setupHttpTransport(
         console.error(`[Transport] New initialization request`);
 
         // Authenticate and get/create cached client
-        // Use Authorization header if provided, otherwise fall back to SUNSAMA_SESSION_TOKEN env var
-        let authHeader = req.headers["authorization"];
-        if (!authHeader && process.env.SUNSAMA_SESSION_TOKEN) {
-          authHeader = `Bearer ${process.env.SUNSAMA_SESSION_TOKEN}`;
-          console.error(`[Transport] Using SUNSAMA_SESSION_TOKEN from environment`);
-        }
+        const authHeader = req.headers["authorization"];
         sessionData = await authenticateHttpRequest(
           Array.isArray(authHeader) ? authHeader[0] : authHeader
         );
