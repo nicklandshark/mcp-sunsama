@@ -87,8 +87,15 @@ export async function setupHttpTransport(
   // Favicon for Claude connector icon
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
+  const faviconPath = join(__dirname, "assets", "favicon.ico");
+  console.error(`[Favicon] Serving from: ${faviconPath}`);
   app.get("/favicon.ico", (req, res) => {
-    res.sendFile(join(__dirname, "assets", "favicon.ico"));
+    res.sendFile(faviconPath, (err) => {
+      if (err) {
+        console.error(`[Favicon] Error serving favicon:`, err);
+        res.status(404).send("Favicon not found");
+      }
+    });
   });
 
   // OAuth2 endpoints for Claude connector authentication
