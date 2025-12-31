@@ -21,7 +21,7 @@
     "clean": "rm -rf dist",
     "build": "tsc",
     "build:clean": "npm run clean && npm run build",
-    "postbuild": "chmod +x dist/main.js",
+    "postbuild": "chmod +x dist/main.js && cp -r src/assets dist/transports/",
     "inspect": "bunx @modelcontextprotocol/inspector --config ./mcp-inspector.json --server sunsama",
     "changeset": "changeset",
     "version": "changeset version && bun scripts/sync-version.ts",

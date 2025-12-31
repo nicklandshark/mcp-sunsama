@@ -4,6 +4,8 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import cors from "cors";
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import {
   authenticateHttpRequest,
   cleanupAllClients,
@@ -80,6 +82,13 @@ export async function setupHttpTransport(
       transport: "http",
       activeSessions: sessionManager.getSessionCount(),
     });
+  });
+
+  // Favicon for Claude connector icon
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  app.get("/favicon.ico", (req, res) => {
+    res.sendFile(join(__dirname, "assets", "favicon.ico"));
   });
 
   // OAuth2 endpoints for Claude connector authentication
