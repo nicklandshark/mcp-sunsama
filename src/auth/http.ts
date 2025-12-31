@@ -130,8 +130,55 @@ export function cleanupAllClients(): void {
 }
 
 /**
+ * Authenticate using API key + session token from environment
+ * Used when API_KEY and SUNSAMA_SESSION_TOKEN are configured
+ */
+async function authenticateWithApiKey(apiKey: string): Promise<SessionData> {
+  const expectedApiKey = process.env.API_KEY;
+  const sessionToken = process.env.SUNSAMA_SESSION_TOKEN;
+
+  if (!expectedApiKey || !sessionToken) {
+    throw new Error("API_KEY and SUNSAMA_SESSION_TOKEN must be set for API key auth");
+  }
+
+  if (apiKey !== expectedApiKey) {
+    throw new Error("Invalid API key");
+  }
+
+  // Use session token auth with cached client
+  const cacheKey = getTokenCacheKey(sessionToken);
+  const now = Date.now();
+
+  // Check cache first
+  if (clientCache.has(cacheKey)) {
+    const cached = clientCache.get(cacheKey)!;
+    if (isClientValid(cached)) {
+      console.error(`[Client Cache] Reusing cached client for api-key-user`);
+      cached.lastAccessedAt = now;
+      return cached;
+    }
+  }
+
+  // Create new client with session token
+  console.error(`[Client Cache] Creating new client for api-key-user`);
+  const sunsamaClient = new SunsamaClient({ sessionToken });
+
+  const sessionData: SessionData = {
+    sunsamaClient,
+    createdAt: now,
+    lastAccessedAt: now
+  };
+
+  clientCache.set(cacheKey, sessionData);
+  return sessionData;
+}
+
+/**
  * Authenticate HTTP request and get or create cached client
- * Supports both Basic Auth (email/password) and Bearer token authentication
+ * Supports:
+ * - API Key auth (Basic Auth with API_KEY env var) - for Claude connector
+ * - Bearer token authentication (session token in header)
+ * - Basic Auth (email/password) - original Sunsama credentials
  * Uses secure cache key (password hash) and race condition protection
  */
 export async function authenticateHttpRequest(
@@ -143,6 +190,12 @@ export async function authenticateHttpRequest(
 
   const isBearer = authHeader.startsWith('Bearer ');
   const isBasic = authHeader.startsWith('Basic ');
+
+  // Check for API key mode: Basic Auth + API_KEY env var set
+  if (isBasic && process.env.API_KEY) {
+    const { password } = parseBasicAuth(authHeader);
+    return authenticateWithApiKey(password);
+  }
 
   if (!isBearer && !isBasic) {
     throw new Error("Authorization header must be Basic or Bearer");
